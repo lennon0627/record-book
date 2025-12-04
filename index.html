@@ -376,6 +376,24 @@
                         loadedRecords.push({ id: doc.id, ...doc.data() });
                     });
                     setRecords(loadedRecords);
+
+                    // 入力テンプレートを読み込む
+                    const templateDoc = await firebase.firestore()
+                        .collection('userTemplates')
+                        .doc(userId)
+                        .get();
+                    
+                    if (templateDoc.exists) {
+                        const template = templateDoc.data();
+                        setFormData(prev => ({
+                            ...template,
+                            date: new Date().toISOString().split('T')[0], // 日付は常に今日
+                            beforeTime: '', // 時刻はクリア
+                            afterTime: '',  // 時刻はクリア
+                            beforeOther: '', // 備考はクリア
+                            afterOther: ''   // 備考はクリア
+                        }));
+                    }
                 } catch (error) {
                     console.error("データ読み込みエラー:", error);
                 }
@@ -443,6 +461,31 @@
                         setRecords([{ ...newRecord, id: docRef.id }, ...records]);
                         alert('保存しました');
                     }
+                    
+                    // 入力テンプレートをFirestoreに保存
+                    await firebase.firestore()
+                        .collection('userTemplates')
+                        .doc(user.uid)
+                        .set({
+                            companyName: formData.companyName,
+                            officeName: formData.officeName,
+                            driverName: formData.driverName,
+                            vehicleNumber: formData.vehicleNumber,
+                            beforeMethod: formData.beforeMethod,
+                            beforeExecutor: formData.beforeExecutor,
+                            beforeAlcoholTest: formData.beforeAlcoholTest,
+                            beforeAlcohol: formData.beforeAlcohol,
+                            beforeHealth: formData.beforeHealth,
+                            beforeInspection: formData.beforeInspection,
+                            beforeWeather: formData.beforeWeather,
+                            afterMethod: formData.afterMethod,
+                            afterExecutor: formData.afterExecutor,
+                            afterAlcoholTest: formData.afterAlcoholTest,
+                            afterAlcohol: formData.afterAlcohol,
+                            afterStatus: formData.afterStatus,
+                            afterHandover: formData.afterHandover,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
                     
                     // フォームをリセット（日付・時刻・備考のみクリア、その他は保持）
                     setFormData(prev => ({
@@ -843,7 +886,7 @@
                                 {editingId && (
                                     <button type="button" className="btn btn-secondary" onClick={() => {
                                         setEditingId(null);
-                                        setFormData({
+                                        const initialFormData = {
                                             date: new Date().toISOString().split('T')[0],
                                             companyName: '',
                                             officeName: '',
@@ -866,7 +909,8 @@
                                             afterStatus: '異常なし',
                                             afterHandover: 'なし',
                                             afterOther: ''
-                                        });
+                                        };
+                                        setFormData(initialFormData);
                                     }}>
                                         キャンセル
                                     </button>

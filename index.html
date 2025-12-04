@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>点呼記録簿</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .login-container {
+            padding: 60px 30px;
+            text-align: center;
+        }
+
+        .login-btn {
+            background: white;
+            color: #5a67d8;
+            border: 2px solid #5a67d8;
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .login-btn:hover {
+            background: #5a67d8;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(90, 103, 216, 0.3);
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .user-info {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .logout-btn {
+            background: #e53e3e;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #c53030;
+            transform: translateY(-2px);
+        }
+
+        .form-section {
+            background: #f7fafc;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+        }
+
+        .form-section h2 {
+            color: #2d3748;
+            font-size: 20px;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #5a67d8;
+            padding-bottom: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input, select, textarea {
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #5a67d8;
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.1);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(90, 103, 216, 0.3);
+        }
+
+        .btn-secondary {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+
+        .btn-tertiary {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-tertiary:hover {
+            background: #dd6b20;
+            transform: translateY(-2px);
+        }
+
+        .records-list {
+            margin-top: 30px;
+        }
+
+        .record-item {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 5px solid #5a67d8;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .record-date {
+            font-weight: 700;
+            color: #2d3748;
+            font-size: 16px;
+        }
+
+        .record-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 13px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-edit {
+            background: #4299e1;
+            color: white;
+        }
+
+        .btn-edit:hover {
+            background: #3182ce;
+        }
+
+        .btn-delete {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #e53e3e;
+        }
+
+        .record-details {
+            color: #718096;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .month-selector {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .month-selector select {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Firebase設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjAfZXyrzQlHIT8qpj0vynIznrJDFcUe4",
+            authDomain: "tenko-kiroku.firebaseapp.com",
+            projectId: "tenko-kiroku",
+            storageBucket: "tenko-kiroku.firebasestorage.app",
+            messagingSenderId: "67100796956",
+            appId: "1:67100796956:web:c57a2f0449e0a766a217d9",
+            measurementId: "G-CDJNEZ5LWX"
+        };
+
+        // Firebase初期化
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+
+        function App() {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [records, setRecords] = useState([]);
+            const [editingId, setEditingId] = useState(null);
+            
+            // フォームの状態
+            const [formData, setFormData] = useState({
+                date: new Date().toISOString().split('T')[0],
+                companyName: '',
+                officeName: '',
+                driverName: '',
+                vehicleNumber: '',
+                // 業務前点呼
+                beforeTime: '',
+                beforeMethod: '対面',
+                beforeExecutor: '',
+                beforeAlcoholTest: '有',
+                beforeAlcohol: '無',
+                beforeHealth: '良好',
+                beforeInspection: '良好',
+                beforeWeather: '晴',
+                beforeOther: '',
+                // 業務後点呼
+                afterTime: '',
+                afterMethod: '対面',
+                afterExecutor: '',
+                afterAlcoholTest: '有',
+                afterAlcohol: '無',
+                afterStatus: '異常なし',
+                afterHandover: 'なし',
+                afterOther: ''
+            });
+
+            // Firestoreからデータを読み込む
+            const loadRecords = async (userId) => {
+                try {
+                    const snapshot = await firebase.firestore()
+                        .collection('records')
+                        .where('userId', '==', userId)
+                        .orderBy('date', 'desc')
+                        .get();
+                    
+                    const loadedRecords = [];
+                    snapshot.forEach(doc => {
+                        loadedRecords.push({ id: doc.id, ...doc.data() });
+                    });
+                    setRecords(loadedRecords);
+                } catch (error) {
+                    console.error("データ読み込みエラー:", error);
+                }
+            };
+
+            useEffect(() => {
+                const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+                    setUser(user);
+                    setLoading(false);
+                    if (user) {
+                        loadRecords(user.uid);
+                    }
+                });
+                return () => unsubscribe();
+            }, []);
+
+            const handleLogin = async () => {
+                try {
+                    const provider = new firebase.auth.GoogleAuthProvider();
+                    await firebase.auth().signInWithPopup(provider);
+                } catch (error) {
+                    console.error("ログインエラー:", error);
+                    alert("ログインに失敗しました: " + error.message);
+                }
+            };
+
+            const handleLogout = () => {
+                firebase.auth().signOut();
+            };
+
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value }));
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                
+                try {
+                    if (editingId) {
+                        // 編集
+                        await firebase.firestore()
+                            .collection('records')
+                            .doc(editingId)
+                            .update(formData);
+                        
+                        const updatedRecords = records.map(record => 
+                            record.id === editingId ? { ...formData, id: editingId, userId: user.uid } : record
+                        );
+                        setRecords(updatedRecords);
+                        setEditingId(null);
+                        alert('更新しました');
+                    } else {
+                        // 新規追加
+                        const newRecord = {
+                            ...formData,
+                            userId: user.uid,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        };
+                        
+                        const docRef = await firebase.firestore()
+                            .collection('records')
+                            .add(newRecord);
+                        
+                        setRecords([{ ...newRecord, id: docRef.id }, ...records]);
+                        alert('保存しました');
+                    }
+                    
+                    // フォームをリセット（日付・時刻・備考のみクリア、その他は保持）
+                    setFormData(prev => ({
+                        ...prev,
+                        date: new Date().toISOString().split('T')[0],
+                        beforeTime: '',
+                        beforeOther: '',
+                        afterTime: '',
+                        afterOther: ''
+                    }));
+                } catch (error) {
+                    console.error("保存エラー:", error);
+                    alert('保存に失敗しました: ' + error.message);
+                }
+            };
+
+            const handleEdit = (record) => {
+                setFormData(record);
+                setEditingId(record.id);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            const handleDelete = async (id) => {
+                if (confirm('この記録を削除しますか?')) {
+                    try {
+                        await firebase.firestore()
+                            .collection('records')
+                            .doc(id)
+                            .delete();
+                        
+                        const updatedRecords = records.filter(record => record.id !== id);
+                        setRecords(updatedRecords);
+                        alert('削除しました');
+                    } catch (error) {
+                        console.error("削除エラー:", error);
+                        alert('削除に失敗しました: ' + error.message);
+                    }
+                }
+            };
+
+            const generatePDF = (month) => {
+                const filteredRecords = records.filter(record => 
+                    record.date.startsWith(month)
+                ).sort((a, b) => a.date.localeCompare(b.date));
+
+                if (filteredRecords.length === 0) {
+                    alert('選択した月のデータがありません');
+                    return;
+                }
+
+                // 印刷用のウィンドウを開く
+                const printWindow = window.open('', '_blank');
+                
+                // HTML生成
+                const html = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>点呼記録簿 ${month.split('-')[0]}年${month.split('-')[1]}月</title>
+    <style>
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+        }
+        body {
+            font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Meiryo', sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #666;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 6px;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background-color: #5a67d8;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+        .date-col { width: 80px; }
+        .name-col { width: 80px; }
+        .vehicle-col { width: 80px; }
+        .before-col, .after-col { width: 150px; }
+        .status-col { width: 150px; }
+        .no-print {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .print-btn {
+            background: #5a67d8;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 0 10px;
+        }
+        .print-btn:hover {
+            background: #4a57c8;
+        }
+        @media print {
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>点呼記録簿</h1>
+    <div class="subtitle">${month.split('-')[0]}年${month.split('-')[1]}月</div>
+    
+    <div class="no-print">
+        <button class="print-btn" onclick="window.print()">PDFとして保存</button>
+        <button class="print-btn" onclick="window.close()">閉じる</button>
+        <p style="color: #666; margin-top: 10px;">
+            ※「PDFとして保存」ボタンをクリックし、印刷ダイアログで「PDFとして保存」を選択してください
+        </p>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th class="date-col">日付</th>
+                <th class="name-col">運転者名</th>
+                <th class="vehicle-col">車両番号</th>
+                <th class="before-col">業務前点呼</th>
+                <th class="status-col">業務前状況</th>
+                <th class="after-col">業務後点呼</th>
+                <th class="status-col">業務後状況</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${filteredRecords.map(record => `
+                <tr>
+                    <td>${record.date}</td>
+                    <td>${record.driverName}</td>
+                    <td>${record.vehicleNumber}</td>
+                    <td>
+                        時刻: ${record.beforeTime}<br>
+                        方法: ${record.beforeMethod}<br>
+                        執行者: ${record.beforeExecutor || '-'}
+                    </td>
+                    <td>
+                        アルコール検知器: ${record.beforeAlcoholTest}<br>
+                        酒気帯び: ${record.beforeAlcohol}<br>
+                        健康状態: ${record.beforeHealth}<br>
+                        日常点検: ${record.beforeInspection}<br>
+                        天候: ${record.beforeWeather}
+                        ${record.beforeOther ? '<br>備考: ' + record.beforeOther : ''}
+                    </td>
+                    <td>
+                        時刻: ${record.afterTime}<br>
+                        方法: ${record.afterMethod}<br>
+                        執行者: ${record.afterExecutor || '-'}
+                    </td>
+                    <td>
+                        アルコール検知器: ${record.afterAlcoholTest}<br>
+                        酒気帯び: ${record.afterAlcohol}<br>
+                        運行状況: ${record.afterStatus}<br>
+                        交替通告: ${record.afterHandover}
+                        ${record.afterOther ? '<br>備考: ' + record.afterOther : ''}
+                    </td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+</body>
+</html>
+                `;
+                
+                printWindow.document.write(html);
+                printWindow.document.close();
+            };
+
+            if (loading) {
+                return (
+                    <div className="container">
+                        <div className="header">
+                            <h1>点呼記録簿</h1>
+                        </div>
+                        <div className="loading">読み込み中...</div>
+                    </div>
+                );
+            }
+
+            if (!user) {
+                return (
+                    <div className="container">
+                        <div className="header">
+                            <h1>点呼記録簿</h1>
+                            <p>軽貨物業者の運転日報管理システム</p>
+                        </div>
+                        <div className="login-container">
+                            <button className="login-btn" onClick={handleLogin}>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                                Googleでログイン
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>点呼記録簿</h1>
+                        <p>軽貨物業者の運転日報管理システム</p>
+                    </div>
+
+                    <div className="content">
+                        <div className="user-info">
+                            <div>
+                                <div className="user-name">👤 {user.displayName || user.email}</div>
+                            </div>
+                            <button className="logout-btn" onClick={handleLogout}>ログアウト</button>
+                        </div>
+
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-section">
+                                <h2>基本情報</h2>
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label>日付 *</label>
+                                        <input type="date" name="date" value={formData.date} onChange={handleInputChange} required />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>会社名</label>
+                                        <input type="text" name="companyName" value={formData.companyName} onChange={handleInputChange} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>営業所名</label>
+                                        <input type="text" name="officeName" value={formData.officeName} onChange={handleInputChange} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>運転者名 *</label>
+                                        <input type="text" name="driverName" value={formData.driverName} onChange={handleInputChange} required />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>車両番号 *</label>
+                                        <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleInputChange} required />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="form-section">
+                                <h2>業務前点呼</h2>
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label>実施日時 *</label>
+                                        <input type="time" name="beforeTime" value={formData.beforeTime} onChange={handleInputChange} required />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>点呼方法</label>
+                                        <select name="beforeMethod" value={formData.beforeMethod} onChange={handleInputChange}>
+                                            <option>対面</option>
+                                            <option>電話</option>
+                                            <option>その他</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>点呼執行者</label>
+                                        <input type="text" name="beforeExecutor" value={formData.beforeExecutor} onChange={handleInputChange} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>アルコール検知器使用</label>
+                                        <select name="beforeAlcoholTest" value={formData.beforeAlcoholTest} onChange={handleInputChange}>
+                                            <option>有</option>
+                                            <option>無</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>酒気帯び</label>
+                                        <select name="beforeAlcohol" value={formData.beforeAlcohol} onChange={handleInputChange}>
+                                            <option>無</option>
+                                            <option>有</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>健康状態</label>
+                                        <select name="beforeHealth" value={formData.beforeHealth} onChange={handleInputChange}>
+                                            <option>良好</option>
+                                            <option>疲労あり</option>
+                                            <option>睡眠不足</option>
+                                            <option>体調不良</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>日常点検</label>
+                                        <select name="beforeInspection" value={formData.beforeInspection} onChange={handleInputChange}>
+                                            <option>良好</option>
+                                            <option>要注意</option>
+                                            <option>要修理</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>天候</label>
+                                        <select name="beforeWeather" value={formData.beforeWeather} onChange={handleInputChange}>
+                                            <option>晴</option>
+                                            <option>曇</option>
+                                            <option>雨</option>
+                                            <option>雪</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group" style={{gridColumn: '1 / -1'}}>
+                                        <label>その他指示事項</label>
+                                        <textarea name="beforeOther" value={formData.beforeOther} onChange={handleInputChange} rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="form-section">
+                                <h2>業務後点呼</h2>
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label>実施日時 *</label>
+                                        <input type="time" name="afterTime" value={formData.afterTime} onChange={handleInputChange} required />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>点呼方法</label>
+                                        <select name="afterMethod" value={formData.afterMethod} onChange={handleInputChange}>
+                                            <option>対面</option>
+                                            <option>電話</option>
+                                            <option>その他</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>点呼執行者</label>
+                                        <input type="text" name="afterExecutor" value={formData.afterExecutor} onChange={handleInputChange} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>アルコール検知器使用</label>
+                                        <select name="afterAlcoholTest" value={formData.afterAlcoholTest} onChange={handleInputChange}>
+                                            <option>有</option>
+                                            <option>無</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>酒気帯び</label>
+                                        <select name="afterAlcohol" value={formData.afterAlcohol} onChange={handleInputChange}>
+                                            <option>無</option>
+                                            <option>有</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>運行状況</label>
+                                        <select name="afterStatus" value={formData.afterStatus} onChange={handleInputChange}>
+                                            <option>異常なし</option>
+                                            <option>遅延あり</option>
+                                            <option>事故あり</option>
+                                            <option>違反あり</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>交替運転者への通告</label>
+                                        <select name="afterHandover" value={formData.afterHandover} onChange={handleInputChange}>
+                                            <option>なし</option>
+                                            <option>あり</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group" style={{gridColumn: '1 / -1'}}>
+                                        <label>その他指示事項</label>
+                                        <textarea name="afterOther" value={formData.afterOther} onChange={handleInputChange} rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="btn-group">
+                                <button type="submit" className="btn btn-primary">
+                                    {editingId ? '更新する' : '記録を保存'}
+                                </button>
+                                {editingId && (
+                                    <button type="button" className="btn btn-secondary" onClick={() => {
+                                        setEditingId(null);
+                                        setFormData({
+                                            date: new Date().toISOString().split('T')[0],
+                                            companyName: '',
+                                            officeName: '',
+                                            driverName: '',
+                                            vehicleNumber: '',
+                                            beforeTime: '',
+                                            beforeMethod: '対面',
+                                            beforeExecutor: '',
+                                            beforeAlcoholTest: '有',
+                                            beforeAlcohol: '無',
+                                            beforeHealth: '良好',
+                                            beforeInspection: '良好',
+                                            beforeWeather: '晴',
+                                            beforeOther: '',
+                                            afterTime: '',
+                                            afterMethod: '対面',
+                                            afterExecutor: '',
+                                            afterAlcoholTest: '有',
+                                            afterAlcohol: '無',
+                                            afterStatus: '異常なし',
+                                            afterHandover: 'なし',
+                                            afterOther: ''
+                                        });
+                                    }}>
+                                        キャンセル
+                                    </button>
+                                )}
+                            </div>
+                        </form>
+
+                        <div className="records-list">
+                            <h2 style={{marginBottom: '20px', color: '#2d3748'}}>記録一覧</h2>
+                            
+                            <div className="month-selector">
+                                <label style={{fontWeight: '600'}}>月別PDF出力:</label>
+                                <select id="monthSelect" defaultValue={new Date().toISOString().slice(0, 7)}>
+                                    {Array.from({length: 12}, (_, i) => {
+                                        const d = new Date();
+                                        d.setMonth(d.getMonth() - i);
+                                        const monthStr = d.toISOString().slice(0, 7);
+                                        return <option key={monthStr} value={monthStr}>{monthStr}</option>;
+                                    })}
+                                </select>
+                                <button className="btn btn-tertiary" onClick={() => {
+                                    const month = document.getElementById('monthSelect').value;
+                                    generatePDF(month);
+                                }}>
+                                    PDF出力
+                                </button>
+                            </div>
+
+                            {records.map(record => (
+                                <div key={record.id} className="record-item">
+                                    <div className="record-header">
+                                        <div className="record-date">
+                                            📅 {record.date} - {record.driverName} ({record.vehicleNumber})
+                                        </div>
+                                        <div className="record-actions">
+                                            <button className="btn-small btn-edit" onClick={() => handleEdit(record)}>編集</button>
+                                            <button className="btn-small btn-delete" onClick={() => handleDelete(record.id)}>削除</button>
+                                        </div>
+                                    </div>
+                                    <div className="record-details">
+                                        <strong>業務前:</strong> {record.beforeTime} ({record.beforeMethod}) - 健康: {record.beforeHealth}<br/>
+                                        <strong>業務後:</strong> {record.afterTime} ({record.afterMethod}) - 状況: {record.afterStatus}
+                                    </div>
+                                </div>
+                            ))}
+                            
+                            {records.length === 0 && (
+                                <div style={{textAlign: 'center', padding: '40px', color: '#a0aec0'}}>
+                                    まだ記録がありません
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

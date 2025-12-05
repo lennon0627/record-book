@@ -304,6 +304,73 @@
             padding: 40px;
             color: #718096;
         }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #e2e8f0;
+            overflow-x: auto;
+        }
+
+        .tab-button {
+            padding: 15px 30px;
+            background: transparent;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #718096;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -3px;
+            transition: all 0.3s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .tab-button:hover {
+            color: #5a67d8;
+            background: #f7fafc;
+        }
+
+        .tab-button.active {
+            color: #5a67d8;
+            border-bottom-color: #5a67d8;
+            background: #f7fafc;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .tabs {
+                border-bottom: 2px solid #e2e8f0;
+            }
+
+            .tab-button {
+                padding: 12px 20px;
+                font-size: 14px;
+                border-bottom: 2px solid transparent;
+                margin-bottom: -2px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -333,6 +400,7 @@
             const [loading, setLoading] = useState(true);
             const [records, setRecords] = useState([]);
             const [editingId, setEditingId] = useState(null);
+            const [activeTab, setActiveTab] = useState('input'); // 'input', 'bulk', 'list'
             
             // 一括操作用のstate
             const [bulkMonth, setBulkMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -510,6 +578,7 @@
             const handleEdit = (record) => {
                 setFormData(record);
                 setEditingId(record.id);
+                setActiveTab('input'); // 記録入力タブに切り替え
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
@@ -925,6 +994,7 @@
                     await batch.commit();
                     alert(`${count}件の記録を一括登録しました`);
                     loadRecords(user.uid);
+                    setActiveTab('list'); // 記録一覧タブに切り替え
                 } catch (error) {
                     console.error("一括登録エラー:", error);
                     alert('一括登録に失敗しました: ' + error.message);
@@ -957,6 +1027,7 @@
                     await batch.commit();
                     alert(`${targetRecords.length}件の記録を削除しました`);
                     loadRecords(user.uid);
+                    setActiveTab('list'); // 記録一覧タブに切り替え
                 } catch (error) {
                     console.error("一括削除エラー:", error);
                     alert('一括削除に失敗しました: ' + error.message);
@@ -1047,6 +1118,33 @@
                             <button className="logout-btn" onClick={handleLogout}>ログアウト</button>
                         </div>
 
+                        {/* タブナビゲーション */}
+                        <div className="tabs">
+                            <button 
+                                className={`tab-button ${activeTab === 'input' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('input')}
+                                type="button"
+                            >
+                                📝 記録入力
+                            </button>
+                            <button 
+                                className={`tab-button ${activeTab === 'bulk' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('bulk')}
+                                type="button"
+                            >
+                                📦 一括操作
+                            </button>
+                            <button 
+                                className={`tab-button ${activeTab === 'list' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('list')}
+                                type="button"
+                            >
+                                📋 記録一覧
+                            </button>
+                        </div>
+
+                        {/* 記録入力タブ */}
+                        <div className={`tab-content ${activeTab === 'input' ? 'active' : ''}`}>
                         <form onSubmit={handleSubmit}>
                             <div className="form-section">
                                 <h2>基本情報</h2>
@@ -1234,29 +1332,11 @@
                                 )}
                             </div>
                         </form>
+                        </div>
 
-                        <div className="records-list">
-                            <h2 style={{marginBottom: '20px', color: '#2d3748'}}>記録一覧</h2>
-                            
-                            <div className="month-selector">
-                                <label style={{fontWeight: '600'}}>月別PDF出力:</label>
-                                <select id="monthSelect" defaultValue={new Date().toISOString().slice(0, 7)}>
-                                    {Array.from({length: 12}, (_, i) => {
-                                        const d = new Date();
-                                        d.setMonth(d.getMonth() - i);
-                                        const monthStr = d.toISOString().slice(0, 7);
-                                        return <option key={monthStr} value={monthStr}>{monthStr}</option>;
-                                    })}
-                                </select>
-                                <button className="btn btn-tertiary" onClick={() => {
-                                    const month = document.getElementById('monthSelect').value;
-                                    generatePDF(month);
-                                }}>
-                                    PDF出力
-                                </button>
-                            </div>
-
-                            <div className="form-section" style={{marginTop: '30px'}}>
+                        {/* 一括操作タブ */}
+                        <div className={`tab-content ${activeTab === 'bulk' ? 'active' : ''}`}>
+                            <div className="form-section">
                                 <h2>一括操作</h2>
                                 
                                 {/* 一括登録 */}
@@ -1373,6 +1453,30 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* 記録一覧タブ */}
+                        <div className={`tab-content ${activeTab === 'list' ? 'active' : ''}`}>
+                            <div className="records-list">
+                                <h2 style={{marginBottom: '20px', color: '#2d3748'}}>記録一覧</h2>
+                                
+                                <div className="month-selector">
+                                    <label style={{fontWeight: '600'}}>月別PDF出力:</label>
+                                    <select id="monthSelect" defaultValue={new Date().toISOString().slice(0, 7)}>
+                                        {Array.from({length: 12}, (_, i) => {
+                                            const d = new Date();
+                                            d.setMonth(d.getMonth() - i);
+                                            const monthStr = d.toISOString().slice(0, 7);
+                                            return <option key={monthStr} value={monthStr}>{monthStr}</option>;
+                                        })}
+                                    </select>
+                                    <button className="btn btn-tertiary" onClick={() => {
+                                        const month = document.getElementById('monthSelect').value;
+                                        generatePDF(month);
+                                    }}>
+                                        PDF出力
+                                    </button>
+                                </div>
 
                             {records.map(record => (
                                 <div key={record.id} className="record-item">
@@ -1397,6 +1501,7 @@
                                     まだ記録がありません
                                 </div>
                             )}
+                        </div>
                         </div>
                     </div>
                 </div>

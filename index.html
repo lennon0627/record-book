@@ -334,6 +334,11 @@
             const [records, setRecords] = useState([]);
             const [editingId, setEditingId] = useState(null);
             
+            // 一括操作用のstate
+            const [bulkMonth, setBulkMonth] = useState(new Date().toISOString().slice(0, 7));
+            const [excludeDays, setExcludeDays] = useState([0]); // 0=日曜日
+            const [excludeDates, setExcludeDates] = useState([]);
+            
             // フォームの状態
             const [formData, setFormData] = useState({
                 date: new Date().toISOString().split('T')[0],
@@ -840,6 +845,160 @@
                 printWindow.document.close();
             };
 
+            // 一括登録機能
+            const handleBulkRegister = async () => {
+                if (!bulkMonth) {
+                    alert('年月を選択してください');
+                    return;
+                }
+
+                if (!formData.companyName || !formData.driverName || !formData.vehicleNumber) {
+                    alert('会社名、運転者名、車両番号は必須です');
+                    return;
+                }
+
+                const confirmMsg = `${bulkMonth}の月の全営業日に記録を一括登録します。\n除外: ${excludeDays.map(d => ['日','月','火','水','木','金','土'][d]).join(', ')}曜日\n${excludeDates.length > 0 ? '除外日付: ' + excludeDates.join(', ') : ''}\n\nよろしいですか？`;
+                
+                if (!confirm(confirmMsg)) {
+                    return;
+                }
+
+                try {
+                    const [year, month] = bulkMonth.split('-').map(Number);
+                    const daysInMonth = new Date(year, month, 0).getDate();
+                    const batch = firebase.firestore().batch();
+                    let count = 0;
+
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const date = new Date(year, month - 1, day);
+                        const dayOfWeek = date.getDay();
+                        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+                        // 除外曜日チェック
+                        if (excludeDays.includes(dayOfWeek)) {
+                            continue;
+                        }
+
+                        // 除外日付チェック
+                        if (excludeDates.includes(dateStr)) {
+                            continue;
+                        }
+
+                        // 既存の記録があるかチェック
+                        const existingRecord = records.find(r => r.date === dateStr);
+                        if (existingRecord) {
+                            continue; // 既存の記録はスキップ
+                        }
+
+                        const newRecord = {
+                            date: dateStr,
+                            companyName: formData.companyName,
+                            officeName: formData.officeName,
+                            driverName: formData.driverName,
+                            vehicleNumber: formData.vehicleNumber,
+                            beforeTime: formData.beforeTime,
+                            beforeMethod: formData.beforeMethod,
+                            beforeExecutor: formData.beforeExecutor,
+                            beforeAlcoholTest: formData.beforeAlcoholTest,
+                            beforeAlcohol: formData.beforeAlcohol,
+                            beforeHealth: formData.beforeHealth,
+                            beforeInspection: formData.beforeInspection,
+                            beforeWeather: formData.beforeWeather,
+                            beforeOther: '',
+                            afterTime: formData.afterTime,
+                            afterMethod: formData.afterMethod,
+                            afterExecutor: formData.afterExecutor,
+                            afterAlcoholTest: formData.afterAlcoholTest,
+                            afterAlcohol: formData.afterAlcohol,
+                            afterStatus: formData.afterStatus,
+                            afterHandover: formData.afterHandover,
+                            afterOther: '',
+                            userId: user.uid,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        };
+
+                        const docRef = firebase.firestore().collection('records').doc();
+                        batch.set(docRef, newRecord);
+                        count++;
+                    }
+
+                    await batch.commit();
+                    alert(`${count}件の記録を一括登録しました`);
+                    loadRecords(user.uid);
+                } catch (error) {
+                    console.error("一括登録エラー:", error);
+                    alert('一括登録に失敗しました: ' + error.message);
+                }
+            };
+
+            // 月全体の削除機能
+            const handleBulkDelete = async (month) => {
+                const targetRecords = records.filter(record => record.date.startsWith(month));
+                
+                if (targetRecords.length === 0) {
+                    alert('削除する記録がありません');
+                    return;
+                }
+
+                const confirmMsg = `${month}の記録 ${targetRecords.length}件 をすべて削除します。\nこの操作は取り消せません。\n\n本当に削除しますか？`;
+                
+                if (!confirm(confirmMsg)) {
+                    return;
+                }
+
+                try {
+                    const batch = firebase.firestore().batch();
+                    
+                    targetRecords.forEach(record => {
+                        const docRef = firebase.firestore().collection('records').doc(record.id);
+                        batch.delete(docRef);
+                    });
+
+                    await batch.commit();
+                    alert(`${targetRecords.length}件の記録を削除しました`);
+                    loadRecords(user.uid);
+                } catch (error) {
+                    console.error("一括削除エラー:", error);
+                    alert('一括削除に失敗しました: ' + error.message);
+                }
+            };
+
+            // 除外曜日のトグル
+            const toggleExcludeDay = (day) => {
+                if (excludeDays.includes(day)) {
+                    setExcludeDays(excludeDays.filter(d => d !== day));
+                } else {
+                    setExcludeDays([...excludeDays, day]);
+                }
+            };
+
+            // 除外日付のトグル
+            const toggleExcludeDate = (date) => {
+                if (excludeDates.includes(date)) {
+                    setExcludeDates(excludeDates.filter(d => d !== date));
+                } else {
+                    setExcludeDates([...excludeDates, date]);
+                }
+            };
+
+            // 指定月の日付リスト生成
+            const getMonthDates = (yearMonth) => {
+                if (!yearMonth) return [];
+                const [year, month] = yearMonth.split('-').map(Number);
+                const daysInMonth = new Date(year, month, 0).getDate();
+                const dates = [];
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(year, month - 1, day);
+                    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    dates.push({
+                        date: dateStr,
+                        dayOfWeek: ['日', '月', '火', '水', '木', '金', '土'][date.getDay()],
+                        dayNum: date.getDay()
+                    });
+                }
+                return dates;
+            };
+
             if (loading) {
                 return (
                     <div className="container">
@@ -1095,6 +1254,124 @@
                                 }}>
                                     PDF出力
                                 </button>
+                            </div>
+
+                            <div className="form-section" style={{marginTop: '30px'}}>
+                                <h2>一括操作</h2>
+                                
+                                {/* 一括登録 */}
+                                <div style={{marginBottom: '30px', padding: '20px', background: '#f7fafc', borderRadius: '10px'}}>
+                                    <h3 style={{fontSize: '18px', marginBottom: '15px', color: '#2d3748'}}>📝 月間一括登録</h3>
+                                    <p style={{fontSize: '14px', color: '#718096', marginBottom: '15px'}}>
+                                        指定した月の全営業日に同じ内容の記録を一括登録します
+                                    </p>
+                                    
+                                    <div className="form-group" style={{marginBottom: '15px'}}>
+                                        <label>対象年月</label>
+                                        <input 
+                                            type="month" 
+                                            value={bulkMonth}
+                                            onChange={(e) => setBulkMonth(e.target.value)}
+                                            style={{maxWidth: '200px'}}
+                                        />
+                                    </div>
+
+                                    <div className="form-group" style={{marginBottom: '15px'}}>
+                                        <label>除外する曜日</label>
+                                        <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+                                            {['日', '月', '火', '水', '木', '金', '土'].map((day, index) => (
+                                                <label key={index} style={{display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer'}}>
+                                                    <input 
+                                                        type="checkbox"
+                                                        checked={excludeDays.includes(index)}
+                                                        onChange={() => toggleExcludeDay(index)}
+                                                    />
+                                                    <span>{day}曜日</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="form-group" style={{marginBottom: '15px'}}>
+                                        <label>除外する日付を選択</label>
+                                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px', maxHeight: '200px', overflow: 'auto', padding: '10px', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                                            {getMonthDates(bulkMonth).map(({date, dayOfWeek, dayNum}) => (
+                                                <label key={date} style={{
+                                                    display: 'flex', 
+                                                    alignItems: 'center', 
+                                                    gap: '5px', 
+                                                    cursor: 'pointer',
+                                                    padding: '5px',
+                                                    borderRadius: '4px',
+                                                    background: excludeDays.includes(dayNum) ? '#f0f0f0' : 'white',
+                                                    opacity: excludeDays.includes(dayNum) ? 0.5 : 1
+                                                }}>
+                                                    <input 
+                                                        type="checkbox"
+                                                        checked={excludeDates.includes(date)}
+                                                        onChange={() => toggleExcludeDate(date)}
+                                                        disabled={excludeDays.includes(dayNum)}
+                                                    />
+                                                    <span style={{fontSize: '12px'}}>{date.split('-')[2]}日({dayOfWeek})</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <p style={{fontSize: '12px', color: '#718096', marginTop: '5px'}}>
+                                            ※除外曜日に該当する日はグレー表示されます
+                                        </p>
+                                    </div>
+
+                                    <div style={{background: '#fff5e6', padding: '15px', borderRadius: '8px', marginBottom: '15px'}}>
+                                        <p style={{fontSize: '14px', color: '#744210', marginBottom: '8px'}}>
+                                            <strong>⚠️ 注意事項:</strong>
+                                        </p>
+                                        <ul style={{fontSize: '13px', color: '#744210', paddingLeft: '20px', margin: 0}}>
+                                            <li>上記フォームで入力した基本情報・業務前・業務後の設定が使用されます</li>
+                                            <li>時刻や備考は空欄で登録されます（後で個別に編集してください）</li>
+                                            <li>既に記録が存在する日はスキップされます</li>
+                                        </ul>
+                                    </div>
+
+                                    <button 
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={handleBulkRegister}
+                                        style={{width: '100%', maxWidth: '300px'}}
+                                    >
+                                        一括登録を実行
+                                    </button>
+                                </div>
+
+                                {/* 一括削除 */}
+                                <div style={{padding: '20px', background: '#fff5f5', borderRadius: '10px', border: '2px solid #fc8181'}}>
+                                    <h3 style={{fontSize: '18px', marginBottom: '15px', color: '#c53030'}}>🗑️ 月間一括削除</h3>
+                                    <p style={{fontSize: '14px', color: '#744210', marginBottom: '15px'}}>
+                                        指定した月の記録をすべて削除します。この操作は取り消せません。
+                                    </p>
+                                    
+                                    <div className="month-selector" style={{marginBottom: '15px'}}>
+                                        <label>削除対象月:</label>
+                                        <select id="bulkDeleteMonth" defaultValue={new Date().toISOString().slice(0, 7)}>
+                                            {Array.from({length: 12}, (_, i) => {
+                                                const d = new Date();
+                                                d.setMonth(d.getMonth() - i);
+                                                const monthStr = d.toISOString().slice(0, 7);
+                                                const count = records.filter(r => r.date.startsWith(monthStr)).length;
+                                                return <option key={monthStr} value={monthStr}>{monthStr} ({count}件)</option>;
+                                            })}
+                                        </select>
+                                        <button 
+                                            type="button"
+                                            className="btn btn-delete" 
+                                            onClick={() => {
+                                                const month = document.getElementById('bulkDeleteMonth').value;
+                                                handleBulkDelete(month);
+                                            }}
+                                        >
+                                            この月の記録をすべて削除
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
 
                             {records.map(record => (

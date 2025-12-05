@@ -20,8 +20,22 @@
         body {
             font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-size: 200% 200%;
+            animation: gradientMove 15s ease infinite;
             min-height: 100vh;
             padding: 20px;
+        }
+
+        @keyframes gradientMove {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
         }
 
         .container {
@@ -310,7 +324,6 @@
             gap: 0;
             margin-bottom: 30px;
             border-bottom: 3px solid #e2e8f0;
-            overflow-x: auto;
         }
 
         .tab-button {
@@ -325,18 +338,29 @@
             margin-bottom: -3px;
             transition: all 0.3s;
             white-space: nowrap;
-            flex-shrink: 0;
+            flex: 1;
         }
 
         .tab-button:hover {
-            color: #5a67d8;
-            background: #f7fafc;
+            color: white;
+            background: rgba(90, 103, 216, 0.2);
         }
 
         .tab-button.active {
-            color: #5a67d8;
-            border-bottom-color: #5a67d8;
-            background: #f7fafc;
+            color: white;
+            border-bottom-color: transparent;
+        }
+
+        .tab-button.active:nth-child(1) {
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+        }
+
+        .tab-button.active:nth-child(2) {
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+        }
+
+        .tab-button.active:nth-child(3) {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
         }
 
         .tab-content {
@@ -365,7 +389,7 @@
             }
 
             .tab-button {
-                padding: 12px 20px;
+                padding: 12px 15px;
                 font-size: 14px;
                 border-bottom: 2px solid transparent;
                 margin-bottom: -2px;

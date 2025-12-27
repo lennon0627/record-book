@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>点呼記録簿 - ダークモード</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background: linear-gradient(45deg, #0f1419 0%, #1a1f2a 25%, #2d3748 50%, #1a202c 75%, #0f1419 100%);
+            background-size: 400% 400%;
+            animation: gradientMove 16s ease infinite;
+            min-height: 100vh;
+            padding: 20px;
+            color: #e6ecef;
+        }
+
+        @keyframes gradientMove {
+            0% {
+                background-position: 0% 50%;
+            }
+            25% {
+                background-position: 50% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            75% {
+                background-position: 50% 100%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #1a1f2a;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(230,236,239,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            color: #e6ecef;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #e6ecef;
+        }
+
+        .header p {
+            color: #cbd5e0;
+        }
+
+        .login-container {
+            padding: 60px 30px;
+            text-align: center;
+        }
+
+        .login-btn {
+            background: #4a5b7c;
+            color: #e6ecef;
+            border: 2px solid #5a6d8f;
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .login-btn:hover {
+            background: #5a6d8f;
+            color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(74,91,124,0.4);
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .user-info {
+            background: #2d3748;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #e6ecef;
+        }
+
+        .logout-btn {
+            background: #e53e3e;
+            color: #ffffff;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .logout-btn:hover {
+            background: #c53030;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(197,48,48,0.4);
+        }
+
+        .form-section {
+            background: #2d3748;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .form-section h2 {
+            color: #e6ecef;
+            font-size: 20px;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #4a5b7c;
+            padding-bottom: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            color: #cbd5e0;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input, select, textarea {
+            padding: 12px;
+            border: 2px solid #4a5b7c;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-family: 'Roboto', Arial, sans-serif;
+            background: #1a1f2a;
+            color: #e6ecef;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #5a6d8f;
+            box-shadow: 0 0 0 3px rgba(90, 109, 143, 0.3), inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #718096;
+        }
+
+        select option {
+            background: #1a1f2a;
+            color: #e6ecef;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 150px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4a5b7c 0%, #5a6d8f 100%);
+            color: #e6ecef;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a6d8f 0%, #6a7d9f 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(74,91,124,0.4);
+        }
+
+        .btn-secondary {
+            background: #38a169;
+            color: #ffffff;
+        }
+
+        .btn-secondary:hover {
+            background: #2f855a;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(56,161,105,0.4);
+        }
+
+        .btn-tertiary {
+            background: #dd6b20;
+            color: #ffffff;
+        }
+
+        .btn-tertiary:hover {
+            background: #c05621;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(221,107,32,0.4);
+        }
+
+        .records-list {
+            margin-top: 30px;
+        }
+
+        .record-item {
+            background: #2d3748;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border-left: 5px solid #4a5b7c;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+
+        .record-item:hover {
+            background: #374151;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+            transform: translateY(-2px);
+        }
+
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .record-date {
+            font-weight: 700;
+            color: #e6ecef;
+            font-size: 16px;
+        }
+
+        .record-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 13px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .btn-edit {
+            background: #3182ce;
+            color: #ffffff;
+        }
+
+        .btn-edit:hover {
+            background: #2c5282;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(49,130,206,0.4);
+        }
+
+        .btn-delete {
+            background: #e53e3e;
+            color: #ffffff;
+        }
+
+        .btn-delete:hover {
+            background: #c53030;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(229,62,62,0.4);
+        }
+
+        .record-details {
+            color: #cbd5e0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .month-selector {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .month-selector label {
+            color: #e6ecef;
+        }
+
+        .month-selector select {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                font-size: 15px;
+            }
+
+            .record-item {
+                padding: 15px;
+            }
+
+            .tab-button {
+                font-size: 13px;
+                padding: 12px 15px;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #cbd5e0;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #2d3748;
+        }
+
+        .tab-button {
+            padding: 15px 30px;
+            background: transparent;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #cbd5e0;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -3px;
+            transition: all 0.3s;
+            white-space: nowrap;
+            flex: 1;
+            box-shadow: none;
+        }
+
+        .tab-button:hover {
+            color: #e6ecef;
+            background: rgba(74, 91, 124, 0.3);
+        }
+
+        .tab-button.active {
+            color: #ffffff;
+            border-bottom-color: transparent;
+        }
+
+        .tab-button.active:nth-child(1) {
+            background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .tab-button.active:nth-child(2) {
+            background: linear-gradient(135deg, #dd6b20 0%, #c05621 100%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .tab-button.active:nth-child(3) {
+            background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .tabs {
+                border-bottom: 2px solid #2d3748;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .tab-button {
+                padding: 12px 15px;
+                font-size: 14px;
+                border-bottom: 2px solid transparent;
+                margin-bottom: -2px;
+                flex: 0 0 auto;
+                min-width: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Firebase設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjAfZXyrzQlHIT8qpj0vynIznrJDFcUe4",
+            authDomain: "tenko-kiroku.firebaseapp.com",
+            projectId: "tenko-kiroku",
+            storageBucket: "tenko-kiroku.firebasestorage.app",
+            messagingSenderId: "67100796956",
+            appId: "1:67100796956:web:c57a2f0449e0a766a217d9",
+            measurementId: "G-CDJNEZ5LWX"
+        };
+
+        // Firebase初期化
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+
+        function App() {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [records, setRecords] = useState([]);
+            const [editingId, setEditingId] = useState(null);
+            const [activeTab, setActiveTab] = useState('input'); // 'input', 'bulk', 'list'
+            
+            // 一括操作用のstate
+            const [bulkMonth, setBulkMonth] = useState(new Date().toISOString().slice(0, 7));
+            const [excludeDays, setExcludeDays] = useState([0]); // 0=日曜日
+            const [excludeDates, setExcludeDates] = useState([]);
+            
+            // フォームの状態
+            const [formData, setFormData] = useState({
+                date: new Date().toISOString().split('T')[0],
+                companyName: '',
+                officeName: '',
+                driverName: '',
+                vehicleNumber: '',
+                // 業務前点呼
+                beforeTime: '',
+                beforeMethod: '対面',
+                beforeExecutor: '',
+                beforeAlcoholTest: '有',
+                beforeAlcohol: '無',
+                beforeHealth: '良好',
+                beforeInspection: '良好',
+                beforeWeather: '晴',
+                beforeOther: '',
+                // 業務後点呼
+                afterTime: '',
+                afterMethod: '対面',
+                afterExecutor: '',
+                afterAlcoholTest: '有',
+                afterAlcohol: '無',
+                afterStatus: '異常なし',
+                afterHandover: 'なし',
+                afterOther: ''
+            });
+
+            // Firestoreからデータを読み込む
+            const loadRecords = async (userId) => {
+                try {
+                    const snapshot = await firebase.firestore()
+                        .collection('records')
+                        .where('userId', '==', userId)
+                        .orderBy('date', 'desc')
+                        .get();
+                    
+                    const loadedRecords = [];
+                    snapshot.forEach(doc => {
+                        loadedRecords.push({ id: doc.id, ...doc.data() });
+                    });
+                    setRecords(loadedRecords);
+
+                    // 入力テンプレートを読み込む
+                    const templateDoc = await firebase.firestore()
+                        .collection('userTemplates')
+                        .doc(userId)
+                        .get();
+                    
+                    if (templateDoc.exists) {
+                        const template = templateDoc.data();
+                        setFormData(prev => ({
+                            ...template,
+                            date: new Date().toISOString().split('T')[0], // 日付は常に今日
+                            beforeTime: '', // 時刻はクリア
+                            afterTime: '',  // 時刻はクリア
+                            beforeOther: '', // 備考はクリア
+                            afterOther: ''   // 備考はクリア
+                        }));
+                    }
+                } catch (error) {
+                    console.error("データ読み込みエラー:", error);
+                }
+            };
+
+            useEffect(() => {
+                const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+                    setUser(user);
+                    setLoading(false);
+                    if (user) {
+                        loadRecords(user.uid);
+                    }
+                });
+                return () => unsubscribe();
+            }, []);
+
+            const handleLogin = async () => {
+                try {
+                    const provider = new firebase.auth.GoogleAuthProvider();
+                    await firebase.auth().signInWithPopup(provider);
+                } catch (error) {
+                    console.error("ログインエラー:", error);
+                    alert("ログインに失敗しました: " + error.message);
+                }
+            };
+
+            const handleLogout = () => {
+                firebase.auth().signOut();
+            };
+
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value }));
+            };
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                
+                try {
+                    if (editingId) {
+                        // 編集
+                        await firebase.firestore()
+                            .collection('records')
+                            .doc(editingId)
+                            .update(formData);
+                        
+                        const updatedRecords = records.map(record => 
+                            record.id === editingId ? { ...formData, id: editingId, userId: user.uid } : record
+                        );
+                        setRecords(updatedRecords);
+                        setEditingId(null);
+                        alert('更新しました');
+                    } else {
+                        // 新規追加
+                        const newRecord = {
+                            ...formData,
+                            userId: user.uid,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        };
+                        
+                        const docRef = await firebase.firestore()
+                            .collection('records')
+                            .add(newRecord);
+                        
+                        setRecords([{ ...newRecord, id: docRef.id }, ...records]);
+                        alert('保存しました');
+                    }
+                    
+                    // 入力テンプレートをFirestoreに保存
+                    await firebase.firestore()
+                        .collection('userTemplates')
+                        .doc(user.uid)
+                        .set({
+                            companyName: formData.companyName,
+                            officeName: formData.officeName,
+                            driverName: formData.driverName,
+                            vehicleNumber: formData.vehicleNumber,
+                            beforeMethod: formData.beforeMethod,
+                            beforeExecutor: formData.beforeExecutor,
+                            beforeAlcoholTest: formData.beforeAlcoholTest,
+                            beforeAlcohol: formData.beforeAlcohol,
+                            beforeHealth: formData.beforeHealth,
+                            beforeInspection: formData.beforeInspection,
+                            beforeWeather: formData.beforeWeather,
+                            afterMethod: formData.afterMethod,
+                            afterExecutor: formData.afterExecutor,
+                            afterAlcoholTest: formData.afterAlcoholTest,
+                            afterAlcohol: formData.afterAlcohol,
+                            afterStatus: formData.afterStatus,
+                            afterHandover: formData.afterHandover,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    
+                    // フォームをリセット（日付・時刻・備考のみクリア、その他は保持）
+                    setFormData(prev => ({
+                        ...prev,
+                        date: new Date().toISOString().split('T')[0],
+                        beforeTime: '',
+                        beforeOther: '',
+                        afterTime: '',
+                        afterOther: ''
+                    }));
+                } catch (error) {
+                    console.error("保存エラー:", error);
+                    alert('保存に失敗しました: ' + error.message);
+                }
+            };
+
+            const handleEdit = (record) => {
+                setFormData(record);
+                setEditingId(record.id);
+                setActiveTab('input'); // 記録入力タブに切り替え
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            const handleDelete = async (id) => {
+                if (confirm('この記録を削除しますか?')) {
+                    try {
+                        await firebase.firestore()
+                            .collection('records')
+                            .doc(id)
+                            .delete();
+                        
+                        const updatedRecords = records.filter(record => record.id !== id);
+                        setRecords(updatedRecords);
+                        alert('削除しました');
+                    } catch (error) {
+                        console.error("削除エラー:", error);
+                        alert('削除に失敗しました: ' + error.message);
+                    }
+                }
+            };
+
+            const generatePDF = (month) => {
+                const filteredRecords = records.filter(record => 
+                    record.date.startsWith(month)
+                ).sort((a, b) => a.date.localeCompare(b.date));
+
+                if (filteredRecords.length === 0) {
+                    alert('選択した月のデータがありません');
+                    return;
+                }
+
+                // 印刷用のウィンドウを開く
+                const printWindow = window.open('', '_blank');
+                
+                // HTML生成
+                const html = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=yes">
+    <title>点呼記録簿 ${month.split('-')[0]}年${month.split('-')[1]}月</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html {
+            width: 100%;
+            height: 100%;
+        }
+        
+        body {
+            font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Meiryo', sans-serif;
+            width: 100%;
+            min-height: 100vh;
+            padding: 15px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .subtitle {
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #666;
+        }
+        
+        .no-print {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        
+        .print-btn {
+            background: #5a67d8;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 8px;
+            display: inline-block;
+            min-width: 180px;
+            touch-action: manipulation;
+        }
+        
+        .print-btn:active {
+            background: #4a57c8;
+            transform: scale(0.98);
+        }
+        
+        .print-btn.secondary {
+            background: #6b7280;
+        }
+        
+        .print-btn.secondary:active {
+            background: #4b5563;
+        }
+        
+        .instruction {
+            color: #666;
+            margin-top: 15px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+        
+        th {
+            background-color: #5a67d8;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            font-size: 12px;
+        }
+        
+        .date-col { width: 10%; }
+        .name-col { width: 10%; }
+        .vehicle-col { width: 12%; }
+        .before-col { width: 17%; }
+        .status-col { width: 17%; }
+        .after-col { width: 17%; }
+        
+        /* スマホ表示時 */
+        @media screen and (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 20px;
+            }
+            
+            .subtitle {
+                font-size: 14px;
+            }
+            
+            .print-btn {
+                display: block;
+                width: 100%;
+                max-width: 400px;
+                margin: 10px auto;
+                padding: 18px 20px;
+                font-size: 16px;
+            }
+            
+            table {
+                font-size: 9px;
+            }
+            
+            th {
+                font-size: 10px;
+                padding: 6px 4px;
+            }
+            
+            td {
+                padding: 6px 4px;
+            }
+        }
+        
+        /* 超小型スマホ */
+        @media screen and (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 18px;
+            }
+            
+            .subtitle {
+                font-size: 13px;
+            }
+            
+            table {
+                font-size: 8px;
+            }
+            
+            th {
+                font-size: 9px;
+                padding: 5px 3px;
+            }
+            
+            td {
+                padding: 5px 3px;
+            }
+        }
+        
+        /* 印刷時 */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+            
+            html, body {
+                width: 100%;
+                height: 100%;
+                background: white;
+            }
+            
+            body {
+                padding: 0;
+            }
+            
+            .container {
+                max-width: none;
+                padding: 0;
+                box-shadow: none;
+                border-radius: 0;
+            }
+            
+            .no-print {
+                display: none;
+            }
+            
+            table {
+                font-size: 10px;
+            }
+            
+            th {
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>点呼記録簿</h1>
+        <div class="subtitle">${month.split('-')[0]}年${month.split('-')[1]}月</div>
+        
+        <div class="no-print">
+            <button class="print-btn" onclick="window.print()">📄 PDFとして保存</button>
+            <button class="print-btn secondary" onclick="window.close()">✕ 閉じる</button>
+            <p class="instruction">
+                ※ 上の「PDFとして保存」ボタンをタップし、<br>
+                印刷画面で「PDFとして保存」を選択してください
+            </p>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th class="date-col">日付</th>
+                    <th class="name-col">運転者名</th>
+                    <th class="vehicle-col">車両番号</th>
+                    <th class="before-col">業務前点呼</th>
+                    <th class="status-col">業務前状況</th>
+                    <th class="after-col">業務後点呼</th>
+                    <th class="status-col">業務後状況</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filteredRecords.map(record => `
+                    <tr>
+                        <td>${record.date}</td>
+                        <td>${record.driverName}</td>
+                        <td>${record.vehicleNumber}</td>
+                        <td>
+                            時刻: ${record.beforeTime}<br>
+                            方法: ${record.beforeMethod}<br>
+                            執行者: ${record.beforeExecutor || '-'}
+                        </td>
+                        <td>
+                            アルコール検知器: ${record.beforeAlcoholTest}<br>
+                            酒気帯び: ${record.beforeAlcohol}<br>
+                            健康状態: ${record.beforeHealth}<br>
+                            日常点検: ${record.beforeInspection}<br>
+                            天候: ${record.beforeWeather}
+                            ${record.beforeOther ? '<br>備考: ' + record.beforeOther : ''}
+                        </td>
+                        <td>
+                            時刻: ${record.afterTime}<br>
+                            方法: ${record.afterMethod}<br>
+                            執行者: ${record.afterExecutor || '-'}
+                        </td>
+                        <td>
+                            アルコール検知器: ${record.afterAlcoholTest}<br>
+                            酒気帯び: ${record.afterAlcohol}<br>
+                            運行状況: ${record.afterStatus}<br>
+                            交替通告: ${record.afterHandover}
+                            ${record.afterOther ? '<br>備考: ' + record.afterOther : ''}
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
+                `;
+                
+                printWindow.document.write(html);
+                printWindow.document.close();
+            };
+
+            // 一括登録機能
+            const handleBulkRegister = async () => {
+                if (!bulkMonth) {
+                    alert('年月を選択してください');
+                    return;
+                }
+
+                if (!formData.companyName || !formData.driverName || !formData.vehicleNumber) {
+                    alert('会社名、運転者名、車両番号は必須です');
+                    return;
+                }
+
+                const confirmMsg = `${bulkMonth}の月の全営業日に記録を一括登録します。\n除外: ${excludeDays.map(d => ['日','月','火','水','木','金','土'][d]).join(', ')}曜日\n${excludeDates.length > 0 ? '除外日付: ' + excludeDates.join(', ') : ''}\n\nよろしいですか？`;
+                
+                if (!confirm(confirmMsg)) {
+                    return;
+                }
+
+                try {
+                    const [year, month] = bulkMonth.split('-').map(Number);
+                    const daysInMonth = new Date(year, month, 0).getDate();
+                    const batch = firebase.firestore().batch();
+                    let count = 0;
+
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const date = new Date(year, month - 1, day);
+                        const dayOfWeek = date.getDay();
+                        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+                        // 除外曜日チェック
+                        if (excludeDays.includes(dayOfWeek)) {
+                            continue;
+                        }
+
+                        // 除外日付チェック
+                        if (excludeDates.includes(dateStr)) {
+                            continue;
+                        }
+
+                        // 既存の記録があるかチェック
+                        const existingRecord = records.find(r => r.date === dateStr);
+                        if (existingRecord) {
+                            continue; // 既存の記録はスキップ
+                        }
+
+                        const newRecord = {
+                            date: dateStr,
+                            companyName: formData.companyName,
+                            officeName: formData.officeName,
+                            driverName: formData.driverName,
+                            vehicleNumber: formData.vehicleNumber,
+                            beforeTime: formData.beforeTime,
+                            beforeMethod: formData.beforeMethod,
+                            beforeExecutor: formData.beforeExecutor,
+                            beforeAlcoholTest: formData.beforeAlcoholTest,
+                            beforeAlcohol: formData.beforeAlcohol,
+                            beforeHealth: formData.beforeHealth,
+                            beforeInspection: formData.beforeInspection,
+                            beforeWeather: formData.beforeWeather,
+                            beforeOther: '',
+                            afterTime: formData.afterTime,
+                            afterMethod: formData.afterMethod,
+                            afterExecutor: formData.afterExecutor,
+                            afterAlcoholTest: formData.afterAlcoholTest,
+                            afterAlcohol: formData.afterAlcohol,
+                            afterStatus: formData.afterStatus,
+                            afterHandover: formData.afterHandover,
+                            afterOther: '',
+                            userId: user.uid,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        };
+
+                        const docRef = firebase.firestore().collection('records').doc();
+                        batch.set(docRef, newRecord);
+                        count++;
+                    }
+
+                    await batch.commit();
+                    alert(`${count}件の記録を一括登録しました`);
+                    loadRecords(user.uid);
+                    setActiveTab('list'); // 記録一覧タブに切り替え
+                } catch (error) {
+                    console.error("一括登録エラー:", error);
+                    alert('一括登録に失敗しました: ' + error.message);
+                }
+            };
+
+            // 月全体の削除機能
+            const handleBulkDelete = async (month) => {
+                const targetRecords = records.filter(record => record.date.startsWith(month));
+                
+                if (targetRecords.length === 0) {
+                    alert('削除する記録がありません');
+                    return;
+                }
+
+                const confirmMsg = `${month}の記録 ${targetRecords.length}件 をすべて削除します。\nこの操作は取り消せません。\n\n本当に削除しますか？`;
+                
+                if (!confirm(confirmMsg)) {
+                    return;
+                }
+
+                try {
+                    const batch = firebase.firestore().batch();
+                    
+                    targetRecords.forEach(record => {
+                        const docRef = firebase.firestore().collection('records').doc(record.id);
+                        batch.delete(docRef);
+                    });
+
+                    await batch.commit();
+                    alert(`${targetRecords.length}件の記録を削除しました`);
+                    loadRecords(user.uid);
+                    setActiveTab('list'); // 記録一覧タブに切り替え
+                } catch (error) {
+                    console.error("一括削除エラー:", error);
+                    alert('一括削除に失敗しました: ' + error.message);
+                }
+            };
+
+            // 除外曜日のトグル
+            const toggleExcludeDay = (day) => {
+                if (excludeDays.includes(day)) {
+                    setExcludeDays(excludeDays.filter(d => d !== day));
+                } else {
+                    setExcludeDays([...excludeDays, day]);
+                }
+            };
+
+            // 除外日付のトグル
+            const toggleExcludeDate = (date) => {
+                if (excludeDates.includes(date)) {
+                    setExcludeDates(excludeDates.filter(d => d !== date));
+                } else {
+                    setExcludeDates([...excludeDates, date]);
+                }
+            };
+
+            // 指定月の日付リスト生成
+            const getMonthDates = (yearMonth) => {
+                if (!yearMonth) return [];
+                const [year, month] = yearMonth.split('-').map(Number);
+                const daysInMonth = new Date(year, month, 0).getDate();
+                const dates = [];
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(year, month - 1, day);
+                    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    dates.push({
+                        date: dateStr,
+                        dayOfWeek: ['日', '月', '火', '水', '木', '金', '土'][date.getDay()],
+                        dayNum: date.getDay()
+                    });
+                }
+                return dates;
+            };
+
+            if (loading) {
+                return (
+                    <div className="container">
+                        <div className="header">
+                            <h1>点呼記録簿</h1>
+                        </div>
+                        <div className="loading">読み込み中...</div>
+                    </div>
+                );
+            }
+
+            if (!user) {
+                return (
+                    <div className="container">
+                        <div className="header">
+                            <h1>点呼記録簿</h1>
+                            <p>軽貨物業者の運転日報管理システム</p>
+                        </div>
+                        <div className="login-container">
+                            <button className="login-btn" onClick={handleLogin}>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                                Googleでログイン
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>点呼記録簿</h1>
+                        <p>軽貨物業者の運転日報管理システム</p>
+                    </div>
+
+                    <div className="content">
+                        <div className="user-info">
+                            <div>
+                                <div className="user-name">👤 {user.displayName || user.email}</div>
+                            </div>
+                            <button className="logout-btn" onClick={handleLogout}>ログアウト</button>
+                        </div>
+
+                        {/* タブナビゲーション */}
+                        <div className="tabs">
+                            <button 
+                                className={`tab-button ${activeTab === 'input' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('input')}
+                                type="button"
+                            >
+                                📝 記録入力
+                            </button>
+                            <button 
+                                className={`tab-button ${activeTab === 'bulk' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('bulk')}
+                                type="button"
+                            >
+                                📦 一括操作
+                            </button>
+                            <button 
+                                className={`tab-button ${activeTab === 'list' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('list')}
+                                type="button"
+                            >
+                                📋 記録一覧
+                            </button>
+                        </div>
+
+                        {/* 記録入力タブ */}
+                        <div className={`tab-content ${activeTab === 'input' ? 'active' : ''}`}>
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-section">
+                                <h2>基本情報</h2>
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label>日付 *</label>
+                                        <input type="date" name="date" value={formData.date} onChange={handleInputChange} required />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>会社名</label>
+                                        <input type="text" name="companyName" value={formData.companyName} onChange={handleInputChange} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>営業所名</label>
+                                        <input type="text" name="officeName" value={formData.officeName} onChange={handleInputChange} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>運転者名 *</label>
+                                        <input type="text" name="driverName" value={formData.driverName} onChange={handleInputChange} required />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>車両番号 *</label>
+                                        <input type="text" name="vehicleNumber" value={formData.vehicleNumber} onChange={handleInputChange} required />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="form-section">
+                                <h2>業務前点呼</h2>
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label>実施日時 *</label>
+                                        <input type="time" name="beforeTime" value={formData.beforeTime} onChange={handleInputChange} required />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>点呼方法</label>
+                                        <select name="beforeMethod" value={formData.beforeMethod} onChange={handleInputChange}>
+                                            <option>対面</option>
+                                            <option>電話</option>
+                                            <option>その他</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>点呼執行者</label>
+                                        <input type="text" name="beforeExecutor" value={formData.beforeExecutor} onChange={handleInputChange} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>アルコール検知器使用</label>
+                                        <select name="beforeAlcoholTest" value={formData.beforeAlcoholTest} onChange={handleInputChange}>
+                                            <option>有</option>
+                                            <option>無</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>酒気帯び</label>
+                                        <select name="beforeAlcohol" value={formData.beforeAlcohol} onChange={handleInputChange}>
+                                            <option>無</option>
+                                            <option>有</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>健康状態</label>
+                                        <select name="beforeHealth" value={formData.beforeHealth} onChange={handleInputChange}>
+                                            <option>良好</option>
+                                            <option>疲労あり</option>
+                                            <option>睡眠不足</option>
+                                            <option>体調不良</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>日常点検</label>
+                                        <select name="beforeInspection" value={formData.beforeInspection} onChange={handleInputChange}>
+                                            <option>良好</option>
+                                            <option>要注意</option>
+                                            <option>要修理</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>天候</label>
+                                        <select name="beforeWeather" value={formData.beforeWeather} onChange={handleInputChange}>
+                                            <option>晴</option>
+                                            <option>曇</option>
+                                            <option>雨</option>
+                                            <option>雪</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group" style={{gridColumn: '1 / -1'}}>
+                                        <label>その他指示事項</label>
+                                        <textarea name="beforeOther" value={formData.beforeOther} onChange={handleInputChange} rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="form-section">
+                                <h2>業務後点呼</h2>
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label>実施日時 *</label>
+                                        <input type="time" name="afterTime" value={formData.afterTime} onChange={handleInputChange} required />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>点呼方法</label>
+                                        <select name="afterMethod" value={formData.afterMethod} onChange={handleInputChange}>
+                                            <option>対面</option>
+                                            <option>電話</option>
+                                            <option>その他</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>点呼執行者</label>
+                                        <input type="text" name="afterExecutor" value={formData.afterExecutor} onChange={handleInputChange} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>アルコール検知器使用</label>
+                                        <select name="afterAlcoholTest" value={formData.afterAlcoholTest} onChange={handleInputChange}>
+                                            <option>有</option>
+                                            <option>無</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>酒気帯び</label>
+                                        <select name="afterAlcohol" value={formData.afterAlcohol} onChange={handleInputChange}>
+                                            <option>無</option>
+                                            <option>有</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>運行状況</label>
+                                        <select name="afterStatus" value={formData.afterStatus} onChange={handleInputChange}>
+                                            <option>異常なし</option>
+                                            <option>遅延あり</option>
+                                            <option>事故あり</option>
+                                            <option>違反あり</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>交替運転者への通告</label>
+                                        <select name="afterHandover" value={formData.afterHandover} onChange={handleInputChange}>
+                                            <option>なし</option>
+                                            <option>あり</option>
+                                        </select>
+                                    </div>
+                                    <div className="form-group" style={{gridColumn: '1 / -1'}}>
+                                        <label>その他指示事項</label>
+                                        <textarea name="afterOther" value={formData.afterOther} onChange={handleInputChange} rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="btn-group">
+                                <button type="submit" className="btn btn-primary">
+                                    {editingId ? '更新する' : '記録を保存'}
+                                </button>
+                                {editingId && (
+                                    <button type="button" className="btn btn-secondary" onClick={() => {
+                                        setEditingId(null);
+                                        const initialFormData = {
+                                            date: new Date().toISOString().split('T')[0],
+                                            companyName: '',
+                                            officeName: '',
+                                            driverName: '',
+                                            vehicleNumber: '',
+                                            beforeTime: '',
+                                            beforeMethod: '対面',
+                                            beforeExecutor: '',
+                                            beforeAlcoholTest: '有',
+                                            beforeAlcohol: '無',
+                                            beforeHealth: '良好',
+                                            beforeInspection: '良好',
+                                            beforeWeather: '晴',
+                                            beforeOther: '',
+                                            afterTime: '',
+                                            afterMethod: '対面',
+                                            afterExecutor: '',
+                                            afterAlcoholTest: '有',
+                                            afterAlcohol: '無',
+                                            afterStatus: '異常なし',
+                                            afterHandover: 'なし',
+                                            afterOther: ''
+                                        };
+                                        setFormData(initialFormData);
+                                    }}>
+                                        キャンセル
+                                    </button>
+                                )}
+                            </div>
+                        </form>
+                        </div>
+
+                        {/* 一括操作タブ */}
+                        <div className={`tab-content ${activeTab === 'bulk' ? 'active' : ''}`}>
+                            <div className="form-section">
+                                <h2>一括操作</h2>
+                                
+                                {/* 一括登録 */}
+                                <div style={{marginBottom: '30px', padding: '20px', background: '#f7fafc', borderRadius: '10px'}}>
+                                    <h3 style={{fontSize: '18px', marginBottom: '15px', color: '#2d3748'}}>📝 月間一括登録</h3>
+                                    <p style={{fontSize: '14px', color: '#718096', marginBottom: '15px'}}>
+                                        指定した月の全営業日に同じ内容の記録を一括登録します
+                                    </p>
+                                    
+                                    <div className="form-group" style={{marginBottom: '15px'}}>
+                                        <label>対象年月</label>
+                                        <input 
+                                            type="month" 
+                                            value={bulkMonth}
+                                            onChange={(e) => setBulkMonth(e.target.value)}
+                                            style={{maxWidth: '200px'}}
+                                        />
+                                    </div>
+
+                                    <div className="form-group" style={{marginBottom: '15px'}}>
+                                        <label>除外する曜日</label>
+                                        <div style={{display: 'flex', gap: '10px', flexWrap: 'wrap'}}>
+                                            {['日', '月', '火', '水', '木', '金', '土'].map((day, index) => (
+                                                <label key={index} style={{display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer'}}>
+                                                    <input 
+                                                        type="checkbox"
+                                                        checked={excludeDays.includes(index)}
+                                                        onChange={() => toggleExcludeDay(index)}
+                                                    />
+                                                    <span>{day}曜日</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="form-group" style={{marginBottom: '15px'}}>
+                                        <label>除外する日付を選択</label>
+                                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px', maxHeight: '200px', overflow: 'auto', padding: '10px', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0'}}>
+                                            {getMonthDates(bulkMonth).map(({date, dayOfWeek, dayNum}) => (
+                                                <label key={date} style={{
+                                                    display: 'flex', 
+                                                    alignItems: 'center', 
+                                                    gap: '5px', 
+                                                    cursor: 'pointer',
+                                                    padding: '5px',
+                                                    borderRadius: '4px',
+                                                    background: excludeDays.includes(dayNum) ? '#f0f0f0' : 'white',
+                                                    opacity: excludeDays.includes(dayNum) ? 0.5 : 1
+                                                }}>
+                                                    <input 
+                                                        type="checkbox"
+                                                        checked={excludeDates.includes(date)}
+                                                        onChange={() => toggleExcludeDate(date)}
+                                                        disabled={excludeDays.includes(dayNum)}
+                                                    />
+                                                    <span style={{fontSize: '12px'}}>{date.split('-')[2]}日({dayOfWeek})</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <p style={{fontSize: '12px', color: '#718096', marginTop: '5px'}}>
+                                            ※除外曜日に該当する日はグレー表示されます
+                                        </p>
+                                    </div>
+
+                                    <div style={{background: '#fff5e6', padding: '15px', borderRadius: '8px', marginBottom: '15px'}}>
+                                        <p style={{fontSize: '14px', color: '#744210', marginBottom: '8px'}}>
+                                            <strong>⚠️ 注意事項:</strong>
+                                        </p>
+                                        <ul style={{fontSize: '13px', color: '#744210', paddingLeft: '20px', margin: 0}}>
+                                            <li>上記フォームで入力した基本情報・業務前・業務後の設定が使用されます</li>
+                                            <li>時刻や備考は空欄で登録されます（後で個別に編集してください）</li>
+                                            <li>既に記録が存在する日はスキップされます</li>
+                                        </ul>
+                                    </div>
+
+                                    <button 
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={handleBulkRegister}
+                                        style={{width: '100%', maxWidth: '300px'}}
+                                    >
+                                        一括登録を実行
+                                    </button>
+                                </div>
+
+                                {/* 一括削除 */}
+                                <div style={{padding: '20px', background: '#fff5f5', borderRadius: '10px', border: '2px solid #fc8181'}}>
+                                    <h3 style={{fontSize: '18px', marginBottom: '15px', color: '#c53030'}}>🗑️ 月間一括削除</h3>
+                                    <p style={{fontSize: '14px', color: '#744210', marginBottom: '15px'}}>
+                                        指定した月の記録をすべて削除します。この操作は取り消せません。
+                                    </p>
+                                    
+                                    <div className="month-selector" style={{marginBottom: '15px'}}>
+                                        <label>削除対象月:</label>
+                                        <select id="bulkDeleteMonth" defaultValue={new Date().toISOString().slice(0, 7)}>
+                                            {Array.from({length: 12}, (_, i) => {
+                                                const d = new Date();
+                                                d.setMonth(d.getMonth() - i);
+                                                const monthStr = d.toISOString().slice(0, 7);
+                                                const count = records.filter(r => r.date.startsWith(monthStr)).length;
+                                                return <option key={monthStr} value={monthStr}>{monthStr} ({count}件)</option>;
+                                            })}
+                                        </select>
+                                        <button 
+                                            type="button"
+                                            className="btn btn-delete" 
+                                            onClick={() => {
+                                                const month = document.getElementById('bulkDeleteMonth').value;
+                                                handleBulkDelete(month);
+                                            }}
+                                        >
+                                            この月の記録をすべて削除
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 記録一覧タブ */}
+                        <div className={`tab-content ${activeTab === 'list' ? 'active' : ''}`}>
+                            <div className="records-list">
+                                <h2 style={{marginBottom: '20px', color: '#2d3748'}}>記録一覧</h2>
+                                
+                                <div className="month-selector">
+                                    <label style={{fontWeight: '600'}}>月別PDF出力:</label>
+                                    <select id="monthSelect" defaultValue={new Date().toISOString().slice(0, 7)}>
+                                        {Array.from({length: 12}, (_, i) => {
+                                            const d = new Date();
+                                            d.setMonth(d.getMonth() - i);
+                                            const monthStr = d.toISOString().slice(0, 7);
+                                            return <option key={monthStr} value={monthStr}>{monthStr}</option>;
+                                        })}
+                                    </select>
+                                    <button className="btn btn-tertiary" onClick={() => {
+                                        const month = document.getElementById('monthSelect').value;
+                                        generatePDF(month);
+                                    }}>
+                                        PDF出力
+                                    </button>
+                                </div>
+
+                            {records.map(record => (
+                                <div key={record.id} className="record-item">
+                                    <div className="record-header">
+                                        <div className="record-date">
+                                            📅 {record.date} - {record.driverName} ({record.vehicleNumber})
+                                        </div>
+                                        <div className="record-actions">
+                                            <button className="btn-small btn-edit" onClick={() => handleEdit(record)}>編集</button>
+                                            <button className="btn-small btn-delete" onClick={() => handleDelete(record.id)}>削除</button>
+                                        </div>
+                                    </div>
+                                    <div className="record-details">
+                                        <strong>業務前:</strong> {record.beforeTime} ({record.beforeMethod}) - 健康: {record.beforeHealth}<br/>
+                                        <strong>業務後:</strong> {record.afterTime} ({record.afterMethod}) - 状況: {record.afterStatus}
+                                    </div>
+                                </div>
+                            ))}
+                            
+                            {records.length === 0 && (
+                                <div style={{textAlign: 'center', padding: '40px', color: '#a0aec0'}}>
+                                    まだ記録がありません
+                                </div>
+                            )}
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
